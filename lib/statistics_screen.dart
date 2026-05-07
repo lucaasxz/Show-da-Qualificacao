@@ -78,13 +78,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF161616), Color(0xFF0A0A0A)],
-          ),
-        ),
+        color: const Color(0xFF0A0A0A),
         child: SafeArea(
           child: Column(
             children: [
@@ -181,11 +175,25 @@ class _StatisticsScreenState extends State<StatisticsScreen>
 
   Widget _buildStatCard(String label, String value, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: const Color(0xFF1C1C1C),
-        border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
+        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            color.withValues(alpha: 0.08),
+            const Color(0xFF111111),
+          ],
+        ),
+        border: Border.all(color: color.withValues(alpha: 0.40), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.08),
+            blurRadius: 16,
+            spreadRadius: 1,
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -195,6 +203,9 @@ class _StatisticsScreenState extends State<StatisticsScreen>
               color: color,
               fontSize: 30,
               fontWeight: FontWeight.w900,
+              shadows: [
+                Shadow(color: color.withValues(alpha: 0.50), blurRadius: 10),
+              ],
             ),
           ),
           const SizedBox(height: 4),
@@ -277,10 +288,22 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                   children: [
                     Text(
                       '${_accuracy.toStringAsFixed(0)}%',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 32,
+                        fontSize: 36,
                         fontWeight: FontWeight.w900,
+                        shadows: [
+                          Shadow(
+                            color: _accuracy >= 60
+                                ? const Color(0xFF4CAF50).withValues(alpha: 0.70)
+                                : const Color(0xFFE53935).withValues(alpha: 0.70),
+                            blurRadius: 16,
+                          ),
+                          Shadow(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            blurRadius: 6,
+                          ),
+                        ],
                       ),
                     ),
                     const Text(

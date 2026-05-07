@@ -101,13 +101,7 @@ class _LoadingScreenState extends State<LoadingScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF161616), Color(0xFF0A0A0A)],
-          ),
-        ),
+        color: const Color(0xFF0A0A0A),
         child: AnimatedBuilder(
           animation: _fade,
           builder: (context, child) => Opacity(opacity: _fade.value, child: child),
@@ -183,10 +177,10 @@ class _LoadingScreenState extends State<LoadingScreen>
 
   Widget _buildProgressBar() {
     return Container(
-      height: 4,
+      height: 8,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        color: const Color(0xFF2A2A2A),
+        color: const Color(0xFF1E1E1E),
       ),
       child: AnimatedBuilder(
         animation: _progress,
@@ -201,6 +195,13 @@ class _LoadingScreenState extends State<LoadingScreen>
                 gradient: const LinearGradient(
                   colors: [Color(0xFFDFA030), Color(0xFFC8870A)],
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFC8870A).withValues(alpha: 0.55),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                  ),
+                ],
               ),
             ),
           ),

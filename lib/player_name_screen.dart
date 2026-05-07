@@ -78,13 +78,7 @@ class _PlayerNameScreenState extends State<PlayerNameScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF161616), Color(0xFF0A0A0A)],
-          ),
-        ),
+        color: const Color(0xFF0A0A0A),
         child: SafeArea(
           child: AnimatedBuilder(
             animation: _entranceCtrl,
@@ -124,7 +118,24 @@ class _PlayerNameScreenState extends State<PlayerNameScreen>
     return Column(
       children: [
         Image.asset('assets/images/logo.png', height: 140, fit: BoxFit.contain),
-        const SizedBox(height: 32),
+        const SizedBox(height: 28),
+        Container(
+          width: 48,
+          height: 2,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(2),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFDFA030), Color(0xFFC8870A)],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFC8870A).withValues(alpha: 0.50),
+                blurRadius: 8,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
         const Text(
           'COMO PODEMOS TE CHAMAR?',
           textAlign: TextAlign.center,
