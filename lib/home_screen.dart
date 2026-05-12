@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'quiz_screen.dart';
+import 'rules_screen.dart';
 
 // XP = total de respostas corretas
 const _kLevels = [
@@ -31,6 +33,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   int _totalGames = 0;
   int _totalCorrect = 0;
   int _totalWrong = 0;
+  // Best accuracy per exam (same order as _examTypes)
+  final List<double> _examBestAccuracy = [0, 0, 0, 0];
+  // Whether a mid-game save exists for each exam
+  final List<bool> _hasSavedExam = [false, false, false, false];
 
   final List<Map<String, dynamic>> _examTypes = [
     {'name': 'Teórica Geral',       'icon': Icons.school_outlined},
@@ -96,6 +102,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _totalGames   = prefs.getInt('total_games') ?? 0;
         _totalCorrect = prefs.getInt('total_correct') ?? 0;
         _totalWrong   = prefs.getInt('total_wrong') ?? 0;
+        _examBestAccuracy[0] = prefs.getDouble('teorica_geral_best_accuracy')       ?? 0;
+        _examBestAccuracy[1] = prefs.getDouble('documentos_tecnicos_best_accuracy') ?? 0;
+        _examBestAccuracy[2] = prefs.getDouble('tratamento_termico_best_accuracy')  ?? 0;
+        _examBestAccuracy[3] = prefs.getDouble('dureza_best_accuracy')              ?? 0;
+        for (int i = 0; i < 4; i++) {
+          _hasSavedExam[i] = prefs.containsKey('saved_exam_$i');
+        }
       });
       _entranceCtrl.forward();
     }
@@ -105,6 +118,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final total = _totalCorrect + _totalWrong;
     return total == 0 ? 0 : _totalCorrect / total * 100;
   }
+
+  Future<void> _refreshStats() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _totalGames   = prefs.getInt('total_games')   ?? 0;
+      _totalCorrect = prefs.getInt('total_correct') ?? 0;
+      _totalWrong   = prefs.getInt('total_wrong')   ?? 0;
+      _examBestAccuracy[0] = prefs.getDouble('teorica_geral_best_accuracy')       ?? 0;
+      _examBestAccuracy[1] = prefs.getDouble('documentos_tecnicos_best_accuracy') ?? 0;
+      _examBestAccuracy[2] = prefs.getDouble('tratamento_termico_best_accuracy')  ?? 0;
+      _examBestAccuracy[3] = prefs.getDouble('dureza_best_accuracy')              ?? 0;
+      for (int i = 0; i < 4; i++) {
+        _hasSavedExam[i] = prefs.containsKey('saved_exam_$i');
+      }
+    });
+  }
+
+  // Each exam requires 80% in the previous one
+  bool _isExamUnlocked(int index) =>
+      index == 0 || _examBestAccuracy[index - 1] >= 80;
 
   int get _levelIndex {
     for (int i = _kLevels.length - 1; i >= 0; i--) {
@@ -267,46 +301,207 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildExamCard(int index) {
-    final exam = _examTypes[index];
+    final exam       = _examTypes[index];
     final isSelected = _selectedExam == index;
+    final unlocked   = _isExamUnlocked(index);
+
     return GestureDetector(
-      onTap: () => setState(() => _selectedExam = index),
+      onTap: unlocked
+          ? () => setState(() => _selectedExam = index)
+          : () => _showLockedSheet(context, index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          color: isSelected
-              ? const Color(0xFFC8870A).withValues(alpha: 0.11)
-              : const Color(0xFF111111),
+          color: unlocked
+              ? (isSelected
+                  ? const Color(0xFFC8870A).withValues(alpha: 0.11)
+                  : const Color(0xFF111111))
+              : const Color(0xFF0D0D0D),
           border: Border.all(
-            color: isSelected
-                ? const Color(0xFFC8870A).withValues(alpha: 0.65)
-                : const Color(0xFF1E1E1E),
+            color: unlocked
+                ? (isSelected
+                    ? const Color(0xFFC8870A).withValues(alpha: 0.65)
+                    : const Color(0xFF1E1E1E))
+                : const Color(0xFF191919),
             width: 1.5,
           ),
-          boxShadow: isSelected
+          boxShadow: (unlocked && isSelected)
               ? [BoxShadow(
                   color: const Color(0xFFC8870A).withValues(alpha: 0.14),
                   blurRadius: 16, spreadRadius: 2)]
               : [],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            Icon(
-              exam['icon'] as IconData,
-              color: isSelected ? const Color(0xFFC8870A) : const Color(0xFF3A3A3A),
-              size: 26,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  exam['icon'] as IconData,
+                  color: unlocked
+                      ? (isSelected
+                          ? const Color(0xFFC8870A)
+                          : const Color(0xFF3A3A3A))
+                      : const Color(0xFF252525),
+                  size: 26,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  exam['name'] as String,
+                  style: TextStyle(
+                    color: unlocked
+                        ? (isSelected ? Colors.white : const Color(0xFF555555))
+                        : const Color(0xFF2E2E2E),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+            if (!unlocked)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF1A1A1A),
+                    border: Border.all(color: const Color(0xFF2A2A2A), width: 1),
+                  ),
+                  child: const Icon(
+                    Icons.lock_rounded,
+                    color: Color(0xFF444444),
+                    size: 13,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLockedSheet(BuildContext context, int lockedIndex) {
+    final prereqName = _examTypes[lockedIndex - 1]['name'] as String;
+    final prereqAcc  = _examBestAccuracy[lockedIndex - 1];
+    final color      = prereqAcc >= 80
+        ? const Color(0xFF4CAF50)
+        : const Color(0xFFE53935);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: const Color(0xFF131313),
+          border: Border.all(color: const Color(0xFF2A2A2A), width: 1),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFE53935).withValues(alpha: 0.12),
+                border: Border.all(
+                  color: const Color(0xFFE53935).withValues(alpha: 0.35),
+                  width: 1.5,
+                ),
+              ),
+              child: const Icon(Icons.lock_rounded,
+                  color: Color(0xFFE53935), size: 28),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'PROVA BLOQUEADA',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 2,
+              ),
             ),
             const SizedBox(height: 10),
             Text(
-              exam['name'] as String,
-              style: TextStyle(
-                color: isSelected ? Colors.white : const Color(0xFF555555),
+              'Complete "$prereqName" com pelo menos\n80% de precisão para desbloquear\nesta modalidade.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF777777),
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
-                height: 1.3,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFF0D0D0D),
+                border: Border.all(color: const Color(0xFF222222), width: 1),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        prereqName,
+                        style: const TextStyle(color: Color(0xFF666666), fontSize: 12),
+                      ),
+                      Text(
+                        '${prereqAcc.toStringAsFixed(0)}% / 80%',
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: (prereqAcc / 80).clamp(0.0, 1.0),
+                      backgroundColor: const Color(0xFF1E1E1E),
+                      valueColor: AlwaysStoppedAnimation(color),
+                      minHeight: 6,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFF1C1C1C),
+                  border: Border.all(color: const Color(0xFF2E2E2E), width: 1),
+                ),
+                child: const Text(
+                  'ENTENDI',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2.5,
+                  ),
+                ),
               ),
             ),
           ],
@@ -478,9 +673,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ),
         child: Row(
           children: [
-            Expanded(child: _buildStatItem('$_totalGames', 'Provas', const Color(0xFFC8870A))),
+            Expanded(child: _buildStatItem('$_totalGames',   'Provas',  const Color(0xFFC8870A))),
             _buildDivider(),
             Expanded(child: _buildStatItem('$_totalCorrect', 'Acertos', const Color(0xFF4CAF50))),
+            _buildDivider(),
+            Expanded(child: _buildStatItem('$_totalWrong',   'Erros',   const Color(0xFFE53935))),
             _buildDivider(),
             Expanded(child: _buildStatItem(
               '${_accuracy.toStringAsFixed(0)}%',
@@ -525,7 +722,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           Row(
             children: [
               Expanded(child: _buildActionButton(
-                Icons.menu_book_outlined, 'Regras', () {})),
+                Icons.menu_book_outlined, 'Regras', () => Navigator.of(context).push(
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const RulesScreen(),
+                    transitionsBuilder: (_, anim, __, child) =>
+                        FadeTransition(opacity: anim, child: child),
+                    transitionDuration: const Duration(milliseconds: 350),
+                  ),
+                ))),
               const SizedBox(width: 10),
               Expanded(child: _buildActionButton(
                 Icons.person_outline, 'Perfil', _onEditName)),
@@ -537,8 +741,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildPlayButton(BuildContext context) {
+    final hasResume = _hasSavedExam[_selectedExam] && _isExamUnlocked(_selectedExam);
     return _PressableButton(
-      onTap: () {},
+      onTap: () async {
+        await Navigator.of(context).push(PageRouteBuilder(
+          pageBuilder: (_, __, ___) => QuizScreen(
+            examName: _examTypes[_selectedExam]['name'] as String,
+            examIndex: _selectedExam,
+          ),
+          transitionsBuilder: (_, anim, __, child) => SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.06),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+            child: FadeTransition(opacity: anim, child: child),
+          ),
+          transitionDuration: const Duration(milliseconds: 380),
+        ));
+        _refreshStats();
+      },
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 18),
@@ -557,17 +778,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ],
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.play_arrow_rounded, color: Color(0xFF0A0A0A), size: 28),
-            SizedBox(width: 8),
-            Text('JOGAR',
-                style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0A0A0A),
-                    letterSpacing: 5)),
+            Icon(
+              hasResume ? Icons.bookmark_rounded : Icons.play_arrow_rounded,
+              color: const Color(0xFF0A0A0A), size: 26),
+            const SizedBox(width: 8),
+            Text(
+              hasResume ? 'CONTINUAR' : 'JOGAR',
+              style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0A0A0A),
+                  letterSpacing: 5)),
           ],
         ),
       ),
