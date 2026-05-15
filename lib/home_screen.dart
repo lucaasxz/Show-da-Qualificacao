@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'achievement_overlay.dart';
 import 'quiz_screen.dart';
 import 'rules_screen.dart';
 
@@ -53,10 +54,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       'color': const Color(0xFFFFD700),
     },
     {
+      'icon': Icons.workspace_premium_rounded,
+      'label': '5 Provas',
+      'unlocked': _totalGames >= 5,
+      'color': const Color(0xFF42A5F5),
+    },
+    {
       'icon': Icons.local_fire_department_rounded,
       'label': '10 Acertos',
       'unlocked': _totalCorrect >= 10,
       'color': const Color(0xFFFF6B35),
+    },
+    {
+      'icon': Icons.bolt_rounded,
+      'label': '50 Acertos',
+      'unlocked': _totalCorrect >= 50,
+      'color': const Color(0xFFFFB300),
+    },
+    {
+      'icon': Icons.verified_rounded,
+      'label': 'Aprovado!',
+      'unlocked': _examBestAccuracy.any((a) => a >= 80),
+      'color': const Color(0xFF66BB6A),
     },
     {
       'icon': Icons.gps_fixed_rounded,
@@ -65,10 +84,34 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       'color': const Color(0xFF00BCD4),
     },
     {
+      'icon': Icons.track_changes_rounded,
+      'label': 'Precisão 90%',
+      'unlocked': _accuracy >= 90 && _totalGames >= 5,
+      'color': const Color(0xFF26C6DA),
+    },
+    {
+      'icon': Icons.explore_rounded,
+      'label': 'Explorador',
+      'unlocked': _examBestAccuracy[1] >= 80,
+      'color': const Color(0xFF26A69A),
+    },
+    {
       'icon': Icons.military_tech_rounded,
       'label': '20 Provas',
       'unlocked': _totalGames >= 20,
       'color': const Color(0xFF9C27B0),
+    },
+    {
+      'icon': Icons.whatshot_rounded,
+      'label': '100 Acertos',
+      'unlocked': _totalCorrect >= 100,
+      'color': const Color(0xFFFF5722),
+    },
+    {
+      'icon': Icons.shield_rounded,
+      'label': 'Veterano',
+      'unlocked': _totalGames >= 50,
+      'color': const Color(0xFF5C6BC0),
     },
     {
       'icon': Icons.emoji_events_rounded,
@@ -611,46 +654,54 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ),
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceAround,
+            spacing: 6,
+            runSpacing: 12,
             children: _achievements.map((a) {
               final unlocked = a['unlocked'] as bool;
               final color    = a['color'] as Color;
-              return Column(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: unlocked
-                          ? color.withValues(alpha: 0.15)
-                          : const Color(0xFF111111),
-                      border: Border.all(
+              return SizedBox(
+                width: 56,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
                         color: unlocked
-                            ? color.withValues(alpha: 0.55)
-                            : const Color(0xFF1E1E1E),
-                        width: 1.5,
+                            ? color.withValues(alpha: 0.15)
+                            : const Color(0xFF111111),
+                        border: Border.all(
+                          color: unlocked
+                              ? color.withValues(alpha: 0.55)
+                              : const Color(0xFF1E1E1E),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(
+                        a['icon'] as IconData,
+                        color: unlocked ? color : const Color(0xFF2A2A2A),
+                        size: 20,
                       ),
                     ),
-                    child: Icon(
-                      a['icon'] as IconData,
-                      color: unlocked ? color : const Color(0xFF2A2A2A),
-                      size: 20,
+                    const SizedBox(height: 5),
+                    Text(
+                      a['label'] as String,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      style: TextStyle(
+                        color: unlocked
+                            ? const Color(0xFF777777)
+                            : const Color(0xFF2E2E2E),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    a['label'] as String,
-                    style: TextStyle(
-                      color: unlocked
-                          ? const Color(0xFF777777)
-                          : const Color(0xFF2E2E2E),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               );
             }).toList(),
           ),
@@ -744,7 +795,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final hasResume = _hasSavedExam[_selectedExam] && _isExamUnlocked(_selectedExam);
     return _PressableButton(
       onTap: () async {
-        await Navigator.of(context).push(PageRouteBuilder(
+        final ctx = context;
+        final prevUnlocked = _achievements
+            .where((a) => a['unlocked'] as bool)
+            .map((a) => a['label'] as String)
+            .toSet();
+
+        await Navigator.of(ctx).push(PageRouteBuilder(
           pageBuilder: (_, __, ___) => QuizScreen(
             examName: _examTypes[_selectedExam]['name'] as String,
             examIndex: _selectedExam,
@@ -758,7 +815,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
           transitionDuration: const Duration(milliseconds: 380),
         ));
-        _refreshStats();
+
+        await _refreshStats();
+
+        if (!ctx.mounted) return;
+        final newlyUnlocked = _achievements
+            .where((a) => a['unlocked'] as bool &&
+                !prevUnlocked.contains(a['label'] as String))
+            .toList();
+        for (final achievement in newlyUnlocked) {
+          if (!ctx.mounted) break;
+          await AchievementOverlay.show(ctx, achievement);
+        }
       },
       child: Container(
         width: double.infinity,

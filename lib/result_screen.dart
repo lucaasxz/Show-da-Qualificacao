@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'home_screen.dart';
 import 'quiz_screen.dart';
 
@@ -40,6 +41,16 @@ class _ResultScreenState extends State<ResultScreen>
     _slide = Tween<double>(begin: 40, end: 0).animate(
         CurvedAnimation(parent: _ctrl, curve: const Interval(0.2, 1.0, curve: Curves.easeOut)));
     _ctrl.forward();
+    _playResultSound();
+  }
+
+  Future<void> _playResultSound() async {
+    try {
+      final player = AudioPlayer();
+      await player.play(AssetSource(
+          _passed ? 'sounds/victory.mp3' : 'sounds/defeat.mp3'));
+      player.onPlayerComplete.listen((_) => player.dispose());
+    } catch (_) {}
   }
 
   @override
